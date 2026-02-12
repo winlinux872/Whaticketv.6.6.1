@@ -1,0 +1,46 @@
+#!/bin/bash
+set -e
+
+echo "Iniciando atualização do Whaticket..."
+
+# --- PASSO 1: Fazer backup do arquivo server.js ---
+if [ -f "frontend/server.js" ]; then
+    echo "Salvando versão personalizada do server.js..."
+    cp frontend/server.js /tmp/server.js.backup
+fi
+# --------------------------------------------------
+
+# O comando abaixo apagaria o arquivo se não tivéssemos feito backup
+git reset --hard HEAD
+git pull
+
+# --- PASSO 2: Restaurar o arquivo server.js ---
+if [ -f "/tmp/server.js.backup" ]; then
+    echo "Restaurando server.js personalizado..."
+    cp /tmp/server.js.backup frontend/server.js
+fi
+# ----------------------------------------------
+
+echo "Atualizando o backend..."
+cd backend
+# ... o resto do script continua igual ...
+npm install
+rm -rf dist
+npm run build
+npx sequelize db:migrate
+npx sequelize db:seed
+
+echo "Atualizando o frontend..."
+cd ../frontend
+npm install
+rm -rf build
+npm run build
+
+echo "Limpando os logs..."
+cd ..
+pm2 flush
+
+echo "Reiniciando os serviços..."
+pm2 restart all
+
+echo "✅ Atualização concluída com sucesso!"
